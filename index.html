@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hopdoddy Weather Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:ital,wght@0,300;0,500;1,300;1,500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink: #0f0e0c;
+  --paper: #f7f5f0;
+  --warm-mid: #eceae4;
+  --warm-border: #d8d4cb;
+  --accent: #c8531a;
+  --accent-light: #f7ede6;
+  --green: #1a6640;
+  --green-light: #e4f0e9;
+  --red: #9e2020;
+  --red-light: #f5e4e4;
+  --neutral: #5e5a54;
+  --neutral-light: #eeecea;
+  --mono: 'DM Mono', monospace;
+  --serif: 'Fraunces', Georgia, serif;
+}
+body { font-family: var(--mono); background: var(--paper); color: var(--ink); min-height: 100vh; font-size: 13px; line-height: 1.5; }
+
+/* MASTHEAD */
+.masthead { background: #1B4332; color: var(--paper); padding: 0 32px; display: flex; align-items: stretch; justify-content: space-between; border-bottom: 3px solid #2D6A4F; }
+.masthead-left { padding: 18px 0; }
+.eyebrow { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 5px; }
+.masthead-title { font-family: var(--serif); font-size: 24px; font-weight: 300; color: #ffffff; }
+.masthead-title em { font-style: italic; color: #e8c56a; }
+.masthead-right { display: flex; align-items: center; gap: 0; }
+.mstat { padding: 0 24px; text-align: center; border-left: 1px solid #2D6A4F; }
+.mstat:last-child { border-right: 1px solid #2D6A4F; }
+.mstat-num { font-family: var(--serif); font-size: 28px; font-weight: 300; line-height: 1; }
+.mstat-num.up { color: #ffffff; }
+.mstat-num.down { color: #ffffff; }
+.mstat-num.gold { color: #ffffff; }
+.mstat-label { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-top: 3px; }
+
+/* DATE SELECTOR */
+.date-panel { background: #fff; border-bottom: 1px solid var(--warm-border); padding: 14px 32px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.panel-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--neutral); flex-shrink: 0; }
+.quick-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  padding: 5px 13px; border: 1px solid var(--warm-border); border-radius: 2px;
+  background: transparent; cursor: pointer; font-family: var(--mono); font-size: 10px;
+  color: var(--neutral); transition: all 0.12s; white-space: nowrap; letter-spacing: 0.3px;
+}
+.chip:hover { border-color: var(--ink); color: var(--ink); }
+.chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.divider-v { width: 1px; height: 28px; background: var(--warm-border); flex-shrink: 0; }
+.custom-date-wrap { display: flex; align-items: center; gap: 8px; }
+.custom-date-wrap input[type="date"] {
+  font-family: var(--mono); font-size: 10px; border: 1px solid var(--warm-border);
+  border-radius: 2px; padding: 5px 10px; background: transparent; color: var(--ink); cursor: pointer;
+}
+.custom-date-wrap input[type="date"]:focus { outline: none; border-color: var(--ink); }
+.add-btn {
+  padding: 5px 13px; background: var(--accent); color: #fff; border: none;
+  border-radius: 2px; font-family: var(--mono); font-size: 10px; cursor: pointer; transition: background 0.12s;
+}
+.add-btn:hover { background: #a84315; }
+.clear-all-btn {
+  margin-left: auto; padding: 5px 12px; background: transparent; color: #aaa;
+  border: 1px solid var(--warm-border); border-radius: 2px; font-family: var(--mono);
+  font-size: 9px; cursor: pointer; letter-spacing: 0.5px; transition: all 0.12s;
+}
+.clear-all-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* SELECTED DATES TAGS */
+.selected-dates-bar { display: none !important; }
+.selected-dates-bar.empty { display: none; }
+.date-tag {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+  background: #fff; border: 1px solid var(--warm-border); border-radius: 2px;
+  font-family: var(--mono); font-size: 10px; color: var(--ink);
+}
+.date-tag.loading { border-color: var(--accent); color: var(--accent); }
+.date-tag.done-up { border-color: var(--green); }
+.date-tag.done-down { border-color: var(--red); }
+.date-tag .remove-tag { cursor: pointer; color: #bbb; font-size: 12px; line-height: 1; margin-left: 2px; }
+.date-tag .remove-tag:hover { color: var(--red); }
+.date-tag .tag-badges { display: flex; gap: 4px; }
+.tag-up { font-size: 9px; background: var(--green-light); color: var(--green); padding: 1px 5px; border-radius: 2px; }
+.tag-down { font-size: 9px; background: var(--red-light); color: var(--red); padding: 1px 5px; border-radius: 2px; }
+
+/* TOOLBAR */
+.toolbar { background: var(--paper); border-bottom: 1px solid var(--warm-border); padding: 10px 32px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.market-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+.mpill {
+  padding: 4px 11px; border: 1px solid var(--warm-border); border-radius: 20px;
+  background: transparent; cursor: pointer; font-family: var(--mono); font-size: 10px;
+  color: var(--neutral); transition: all 0.12s;
+}
+.mpill:hover { border-color: var(--ink); color: var(--ink); }
+.mpill.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.view-toggle { display: flex; gap: 0; margin-left: auto; border: 1px solid var(--warm-border); border-radius: 2px; overflow: hidden; }
+.vtoggle {
+  padding: 5px 12px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.5px;
+  text-transform: uppercase; background: transparent; border: none; cursor: pointer;
+  color: var(--neutral); border-right: 1px solid var(--warm-border); transition: all 0.12s;
+}
+.vtoggle:last-child { border-right: none; }
+.vtoggle.active { background: var(--ink); color: var(--paper); }
+.refresh-btn {
+  padding: 5px 14px; background: var(--accent-light); border: 1px solid var(--accent);
+  border-radius: 2px; font-family: var(--mono); font-size: 10px; color: var(--accent);
+  cursor: pointer; transition: all 0.12s; letter-spacing: 0.3px;
+}
+.refresh-btn:hover { background: var(--accent); color: #fff; }
+.refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* PROGRESS */
+.progress-track { height: 2px; background: var(--warm-mid); }
+.progress-fill { height: 100%; background: var(--accent); transition: width 0.2s; width: 0%; }
+
+/* SCOREBOARD */
+.scoreboard { display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-bottom: 2px solid var(--warm-border); }
+.score-cell { padding: 18px 24px; border-right: 1px solid var(--warm-border); cursor: pointer; transition: background 0.12s; position: relative; }
+.score-cell:last-child { border-right: none; }
+.score-cell:hover { background: var(--warm-mid); }
+.score-cell.active { background: var(--paper); }
+.score-cell.active::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.score-cell.sv-upside.active::after { background: var(--green); }
+.score-cell.sv-downside.active::after { background: var(--red); }
+.score-cell.sv-neutral.active::after { background: var(--neutral); }
+.score-cell.sv-all.active::after { background: var(--accent); }
+.sc-eye { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #aaa; margin-bottom: 6px; }
+.sc-num { font-family: var(--serif); font-size: 44px; font-weight: 300; line-height: 1; margin-bottom: 3px; }
+.sv-upside .sc-num { color: var(--green); }
+.sv-downside .sc-num { color: var(--red); }
+.sv-neutral .sc-num { color: var(--neutral); }
+.sv-all .sc-num { color: var(--accent); }
+.sc-desc { font-size: 10px; color: #bbb; line-height: 1.4; }
+
+/* DAY TABS */
+.day-tabs-wrap { display: none !important; }
+.day-tabs-wrap:empty, .day-tabs-wrap.hidden { display: none; }
+.day-tab {
+  padding: 10px 18px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.3px;
+  color: var(--neutral); cursor: pointer; border: none; background: transparent;
+  border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.12s;
+  display: flex; align-items: center; gap: 7px;
+}
+.day-tab:hover { color: var(--ink); }
+.day-tab.active { color: var(--ink); border-bottom: 2px solid var(--ink); background: var(--paper); }
+.tab-pill { font-size: 9px; padding: 1px 5px; border-radius: 2px; }
+.tab-up { background: var(--green-light); color: var(--green); }
+.tab-down { background: var(--red-light); color: var(--red); }
+
+/* CONTENT */
+.content { padding: 24px 32px; }
+.empty-prompt { text-align: center; padding: 80px 20px; }
+.empty-prompt-icon { font-family: var(--serif); font-size: 48px; font-weight: 300; font-style: italic; color: var(--warm-border); margin-bottom: 16px; }
+.empty-prompt-text { font-size: 12px; color: #bbb; letter-spacing: 0.5px; }
+.empty-prompt-text strong { color: var(--neutral); font-weight: 400; }
+
+.loading-state { display: flex; align-items: center; justify-content: center; padding: 80px 20px; flex-direction: column; gap: 12px; color: #aaa; }
+.spinner { width: 22px; height: 22px; border: 2px solid var(--warm-border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.section-block { margin-bottom: 28px; }
+.section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--warm-border); }
+.section-eye { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; font-weight: 500; }
+.section-eye.up { color: var(--green); }
+.section-eye.down { color: var(--red); }
+.section-eye.neut { color: var(--neutral); }
+.section-count { font-family: var(--serif); font-size: 15px; font-weight: 300; padding: 1px 8px; border-radius: 2px; }
+.section-count.up { background: var(--green-light); color: var(--green); }
+.section-count.down { background: var(--red-light); color: var(--red); }
+.section-count.neut { background: var(--neutral-light); color: var(--neutral); }
+.section-insight { font-size: 10px; color: #aaa; margin-left: auto; font-style: italic; }
+
+/* CARDS */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 10px; }
+
+.wx-card { background: #fff; border: 1px solid var(--warm-border); border-radius: 3px; overflow: hidden; transition: box-shadow 0.14s, transform 0.14s; }
+.wx-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.07); transform: translateY(-1px); }
+.wx-card.upside { border-top: 3px solid var(--green); }
+.wx-card.downside { border-top: 3px solid var(--red); }
+.wx-card.neutral { border-top: 3px solid var(--warm-border); }
+
+.card-head { padding: 11px 13px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--warm-mid); }
+.card-name { font-family: var(--serif); font-size: 14px; font-weight: 300; }
+.card-sub { font-size: 10px; color: #aaa; margin-top: 2px; }
+.sig-tag { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 7px; border-radius: 2px; flex-shrink: 0; font-weight: 500; }
+.sig-tag.upside { background: var(--green-light); color: var(--green); }
+.sig-tag.downside { background: var(--red-light); color: var(--red); }
+.sig-tag.neutral { background: var(--neutral-light); color: var(--neutral); }
+
+.wx-cols { display: grid; grid-template-columns: 1fr 1fr; }
+.wx-col { padding: 10px 13px; }
+.wx-col:first-child { border-right: 1px solid var(--warm-mid); }
+.wx-col-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #bbb; margin-bottom: 6px; }
+.wx-col-date { font-size: 9px; color: #ccc; display: block; margin-top: 1px; }
+.wx-main { display: flex; align-items: center; gap: 7px; }
+.wx-icon { font-size: 18px; line-height: 1; }
+.wx-temp { font-family: var(--serif); font-size: 20px; font-weight: 300; color: var(--ink); }
+.wx-range { font-size: 10px; color: #bbb; margin-top: 1px; }
+.wx-desc { font-size: 10px; color: #888; margin-top: 3px; }
+.wx-chips { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+.wx-chip { font-size: 9px; background: var(--warm-mid); border-radius: 2px; padding: 2px 5px; color: #888; }
+
+.insight-bar { padding: 7px 13px; border-top: 1px solid var(--warm-mid); font-size: 10px; line-height: 1.4; }
+.insight-bar.upside { background: var(--green-light); color: var(--green); }
+.insight-bar.downside { background: var(--red-light); color: var(--red); }
+.insight-bar.neutral { background: var(--neutral-light); color: var(--neutral); }
+
+.no-results { text-align: center; padding: 40px 20px; color: #ccc; font-size: 11px; }
+
+/* SKELETON */
+.skel { background: linear-gradient(90deg, var(--warm-mid) 25%, var(--warm-border) 50%, var(--warm-mid) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 2px; display: inline-block; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* COMP INFO */
+.comp-info-bar { background: #163829; color: #666; font-size: 10px; padding: 5px 32px; letter-spacing: 0.3px; }
+.comp-info-bar span { color: #e8c56a; }
+
+/* ── MOBILE RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .masthead { padding: 0 16px; flex-wrap: wrap; }
+  .masthead-right { width: 100%; border-top: 1px solid #2D6A4F; justify-content: space-around; }
+  .mstat { padding: 8px 12px; border-left: none; border-right: none !important; }
+  .masthead-title { font-size: 18px; }
+
+  .date-panel { padding: 10px 16px; gap: 8px; }
+  .quick-chips { gap: 4px; }
+  .chip { padding: 5px 9px; font-size: 9px; }
+  .divider-v { display: none; }
+  .custom-date-wrap { width: 100%; }
+  .custom-date-wrap input[type="date"] { flex: 1; }
+  .clear-all-btn { margin-left: 0; }
+
+  .selected-dates-bar { padding: 6px 16px; gap: 6px; }
+
+  .toolbar { padding: 8px 16px; gap: 6px; }
+  .market-pills { gap: 4px; }
+  .mpill { padding: 4px 8px; font-size: 9px; }
+  .view-toggle { width: 100%; }
+  .vtoggle { flex: 1; text-align: center; font-size: 9px; padding: 5px 4px; }
+  .refresh-btn { width: 100%; text-align: center; }
+
+  .scoreboard { grid-template-columns: 1fr 1fr; }
+  .score-cell { padding: 12px 14px; }
+  .sc-num { font-size: 32px; }
+  .sc-desc { font-size: 9px; }
+
+  .day-tabs-wrap { padding: 0 16px; }
+
+  .content { padding: 14px 16px; }
+  .card-grid { grid-template-columns: 1fr; }
+
+  .comp-info-bar { padding: 5px 16px; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .masthead-left { padding: 14px 0 8px; }
+}
+@media (max-width: 420px) {
+  .scoreboard { grid-template-columns: 1fr 1fr; }
+  .sc-num { font-size: 26px; }
+  .chip { padding: 4px 7px; font-size: 9px; }
+  .card-head { flex-wrap: wrap; gap: 6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-left">
+    <div class="eyebrow">Hopdoddy Burger Bar · Operations Intelligence</div>
+    <div class="masthead-title">Weather <em>Upside</em> Dashboard</div>
+  </div>
+  <div class="masthead-right">
+    <div class="mstat">
+      <div class="mstat-num up" id="hdrUp">—</div>
+      <div class="mstat-label">Upside</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num down" id="hdrDown">—</div>
+      <div class="mstat-label">Downside</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num gold" id="hdrTotal">—</div>
+      <div class="mstat-label">Loaded</div>
+    </div>
+  </div>
+</div>
+<div class="comp-info-bar" id="compInfoBar">Select a date to begin</div>
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- DATE SELECTOR -->
+<div class="date-panel">
+  <div class="panel-label">Select date</div>
+  <div class="quick-chips">
+    <button class="chip" id="chip--3" onclick="selectSingleDate(-3)">-3 days</button>
+    <button class="chip" id="chip--2" onclick="selectSingleDate(-2)">-2 days</button>
+    <button class="chip" id="chip--1" onclick="selectSingleDate(-1)">Yesterday</button>
+    <button class="chip active" id="chip-0" onclick="selectSingleDate(0)">Today</button>
+    <button class="chip" id="chip-1" onclick="selectSingleDate(1)">Tomorrow</button>
+    <button class="chip" id="chip-3" onclick="selectSingleDate(3)">+3 days</button>
+    <button class="chip" id="chip-7" onclick="selectSingleDate(7)">+7 days</button>
+    <button class="chip" id="chip-14" onclick="selectSingleDate(14)">+14 days</button>
+  </div>
+  <div class="divider-v"></div>
+  <div class="custom-date-wrap">
+    <div class="panel-label">Custom</div>
+    <input type="date" id="customDateInput" />
+    <button class="add-btn" onclick="selectCustomDate()">View</button>
+  </div>
+</div>
+
+<!-- MARKET FILTER + VIEW -->
+<div class="toolbar">
+  <div class="market-pills" id="marketPills"></div>
+  <div class="view-toggle">
+    <button class="vtoggle active" id="vt-upside" onclick="setView('upside')">Upside</button>
+    <button class="vtoggle" id="vt-downside" onclick="setView('downside')">Downside</button>
+    <button class="vtoggle" id="vt-neutral" onclick="setView('neutral')">Neutral</button>
+    <button class="vtoggle" id="vt-all" onclick="setView('all')">All</button>
+  </div>
+  <button class="refresh-btn" id="refreshBtn" onclick="refreshCurrent()">↺ Refresh</button>
+</div>
+
+<!-- SCOREBOARD -->
+<div class="scoreboard">
+  <div class="score-cell sv-upside active" id="sc-upside" onclick="setView('upside')">
+    <div class="sc-eye">Upside locations</div>
+    <div class="sc-num" id="scNumUp">—</div>
+    <div class="sc-desc">Good weather now · bad comp</div>
+  </div>
+  <div class="score-cell sv-neutral" id="sc-neutral" onclick="setView('neutral')">
+    <div class="sc-eye">Neutral</div>
+    <div class="sc-num" id="scNumNeut">—</div>
+    <div class="sc-desc">Similar conditions YOY</div>
+  </div>
+  <div class="score-cell sv-downside" id="sc-downside" onclick="setView('downside')">
+    <div class="sc-eye">Downside locations</div>
+    <div class="sc-num" id="scNumDown">—</div>
+    <div class="sc-desc">Bad weather now · good comp</div>
+  </div>
+  <div class="score-cell sv-all" id="sc-all" onclick="setView('all')">
+    <div class="sc-eye">All loaded</div>
+    <div class="sc-num" id="scNumAll">—</div>
+    <div class="sc-desc">Across selected date</div>
+  </div>
+</div>
+
+<!-- DAY TABS (shown when multiple dates selected) -->
+<div class="day-tabs-wrap hidden" id="dayTabsWrap"></div>
+
+<!-- MAIN -->
+<div class="content" id="mainContent">
+  <div class="empty-prompt">
+    <div class="empty-prompt-icon">☀</div>
+    <div class="empty-prompt-text">
+      <strong>Pick a date above to get started</strong><br>
+      Use quick chips or enter a custom date — compare as many days as you like
+    </div>
+  </div>
+</div>
+
+<script>
+const LOCATIONS = [
+  {name:"Triangle",market:"Austin",state:"TX",zip:"78751",lat:30.3167,lon:-97.7395},
+  {name:"Anderson Ln",market:"Austin",state:"TX",zip:"78757",lat:30.3601,lon:-97.7316},
+  {name:"Plaza Saltillo",market:"Austin",state:"TX",zip:"78702",lat:30.2624,lon:-97.7218},
+  {name:"South Congress",market:"Austin",state:"TX",zip:"78704",lat:30.2453,lon:-97.7609},
+  {name:"Western Oaks",market:"Austin",state:"TX",zip:"78749",lat:30.2165,lon:-97.8379},
+  {name:"Cedar Park",market:"Austin",state:"TX",zip:"78613",lat:30.5052,lon:-97.8203},
+  {name:"Round Rock",market:"Austin",state:"TX",zip:"78665",lat:30.5082,lon:-97.6789},
+  {name:"Mueller NRO",market:"Austin",state:"TX",zip:"78723",lat:30.2979,lon:-97.6999},
+  {name:"River Oaks",market:"Houston",state:"TX",zip:"77006",lat:29.7469,lon:-95.4161},
+  {name:"Vintage Park",market:"Houston",state:"TX",zip:"77070",lat:29.9602,lon:-95.5635},
+  {name:"City Centre",market:"Houston",state:"TX",zip:"77024",lat:29.7607,lon:-95.5596},
+  {name:"WaterWorks",market:"Houston",state:"TX",zip:"77007",lat:29.7647,lon:-95.3936},
+  {name:"Rice Village",market:"Houston",state:"TX",zip:"77005",lat:29.7177,lon:-95.4226},
+  {name:"Webster / Baybrook",market:"Houston",state:"TX",zip:"77598",lat:29.5349,lon:-95.1209},
+  {name:"Stafford",market:"Houston",state:"TX",zip:"77477",lat:29.6189,lon:-95.5782},
+  {name:"The Woodlands",market:"Houston",state:"TX",zip:"77380",lat:30.1524,lon:-95.4756},
+  {name:"Cypress",market:"Houston",state:"TX",zip:"77433",lat:29.9691,lon:-95.6971},
+  {name:"Vineyard",market:"San Antonio",state:"TX",zip:"78249",lat:29.5530,lon:-98.6127},
+  {name:"Rim",market:"San Antonio",state:"TX",zip:"78257",lat:29.6119,lon:-98.6246},
+  {name:"Strand",market:"San Antonio",state:"TX",zip:"78205",lat:29.4232,lon:-98.4936},
+  {name:"Preston Center",market:"Dallas",state:"TX",zip:"75225",lat:32.8644,lon:-96.8057},
+  {name:"McKinney Ave",market:"Dallas",state:"TX",zip:"75204",lat:32.7988,lon:-96.7975},
+  {name:"Addison",market:"Dallas",state:"TX",zip:"75001",lat:32.9557,lon:-96.8303},
+  {name:"Plano",market:"Dallas",state:"TX",zip:"75024",lat:33.0716,lon:-96.8236},
+  {name:"McKinney Westgrove",market:"Dallas",state:"TX",zip:"75070",lat:33.1973,lon:-96.7129},
+  {name:"Euless",market:"Dallas",state:"TX",zip:"76039",lat:32.8371,lon:-97.0822},
+  {name:"Alliance",market:"Fort Worth",state:"TX",zip:"76177",lat:32.9869,lon:-97.3267},
+  {name:"Left Bank",market:"Fort Worth",state:"TX",zip:"76107",lat:32.7485,lon:-97.3738},
+  {name:"College Station",market:"Other TX",state:"TX",zip:"77840",lat:30.6280,lon:-96.3344},
+  {name:"Corpus Christi",market:"Other TX",state:"TX",zip:"78411",lat:27.7682,lon:-97.4164},
+  {name:"Midland",market:"Other TX",state:"TX",zip:"79701",lat:31.9974,lon:-102.0779},
+  {name:"Odessa",market:"Other TX",state:"TX",zip:"79762",lat:31.8457,lon:-102.3676},
+  {name:"Richmond",market:"Other TX",state:"TX",zip:"77469",lat:29.5821,lon:-95.7605},
+  {name:"San Marcos",market:"Other TX",state:"TX",zip:"78666",lat:29.8833,lon:-97.9414},
+  {name:"9th & CO",market:"Denver",state:"CO",zip:"80218",lat:39.7333,lon:-104.9709},
+  {name:"Union Station",market:"Denver",state:"CO",zip:"80202",lat:39.7535,lon:-104.9998},
+  {name:"Druid Hills",market:"Atlanta",state:"GA",zip:"30329",lat:33.7986,lon:-84.3242},
+  {name:"Cobb",market:"Atlanta",state:"GA",zip:"30067",lat:33.8832,lon:-84.4677},
+  {name:"Sandy Springs / Perimeter",market:"Atlanta",state:"GA",zip:"30346",lat:33.9193,lon:-84.3502},
+  {name:"Playa Vista",market:"California",state:"CA",zip:"90094",lat:33.9742,lon:-118.4273},
+  {name:"Tustin",market:"California",state:"CA",zip:"92782",lat:33.7459,lon:-117.8265},
+  {name:"Newport Beach",market:"California",state:"CA",zip:"92660",lat:33.6185,lon:-117.8731},
+  {name:"El Segundo",market:"California",state:"CA",zip:"90245",lat:33.9192,lon:-118.4165},
+  {name:"Camelback (Phoenix)",market:"Arizona",state:"AZ",zip:"85016",lat:33.5078,lon:-112.0512},
+  {name:"Scottsdale",market:"Arizona",state:"AZ",zip:"85251",lat:33.4942,lon:-111.9261},
+  {name:"Belcourt (Nashville)",market:"Nashville",state:"TN",zip:"37205",lat:36.1311,lon:-86.8217},
+  {name:"Poplar Commons (Memphis)",market:"Memphis",state:"TN",zip:"38117",lat:35.1152,lon:-89.9281},
+  {name:"St Johns (Jacksonville)",market:"Jacksonville",state:"FL",zip:"32246",lat:30.2802,lon:-81.5158},
+  {name:"Shreveport",market:"Shreveport",state:"LA",zip:"71105",lat:32.4766,lon:-93.7444},
+];
+
+const WMO = {
+  0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",
+  45:"Foggy",48:"Rime fog",51:"Light drizzle",53:"Moderate drizzle",55:"Dense drizzle",
+  61:"Light rain",63:"Moderate rain",65:"Heavy rain",71:"Light snow",73:"Moderate snow",
+  75:"Heavy snow",77:"Snow grains",80:"Light showers",81:"Moderate showers",82:"Violent showers",
+  85:"Light snow showers",86:"Heavy snow showers",95:"Thunderstorm",96:"Thunderstorm + hail",99:"Severe thunderstorm"
+};
+const ICON = {
+  0:"☀️",1:"🌤",2:"⛅",3:"☁️",45:"🌫",48:"🌫",51:"🌦",53:"🌦",55:"🌧",
+  61:"🌧",63:"🌧",65:"🌧",71:"❄️",73:"❄️",75:"❄️",77:"❄️",
+  80:"🌦",81:"🌧",82:"⛈",85:"🌨",86:"🌨",95:"⛈",96:"⛈",99:"⛈"
+};
+
+function isBad(wmo, precip, wind) {
+  // Only flag genuinely disruptive conditions — overcast/cloudy/fog are fine for traffic
+  // Rain, drizzle, snow, thunderstorms = bad
+  if (wmo >= 51) return true;
+  // Meaningful precipitation even if WMO didn't catch it
+  if (parseFloat(precip) > 0.1) return true;
+  // Dangerously high winds (50+ mph)
+  if (wind && parseFloat(wind) >= 50) return true;
+  // Clear, mainly clear, partly cloudy (0-2), overcast (3), fog (45,48) all count as fine
+  return false;
+}
+function signal(t, c) {
+  const gt = !isBad(t.wmo, t.precip, t.wind), gc = !isBad(c.wmo, c.precip, c.wind);
+  if (gt && !gc) return 'upside';
+  if (!gt && gc) return 'downside';
+  return 'neutral';
+}
+function insight(sig, t, c) {
+  const td = WMO[t.wmo] || 'conditions', cd = WMO[c.wmo] || 'conditions';
+  if (sig === 'upside') return `${td} today vs ${cd.toLowerCase()} on comp — sales tailwind`;
+  if (sig === 'downside') return `${td} today vs ${cd.toLowerCase()} on comp — sales headwind`;
+  const both = !isBad(t.wmo,t.precip,t.wind) && !isBad(c.wmo,c.precip,c.wind);
+  return both ? 'Similar conditions both days — no weather variance expected' : 'Similar conditions YOY — weather neutral';
+}
+
+function isoDate(d) { return d.toISOString().split('T')[0]; }
+function fmtShort(iso) {
+  const d = new Date(iso+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function fmtFull(iso) {
+  const d = new Date(iso+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+function getCompDate(iso) {
+  const d = new Date(iso+'T12:00:00');
+  const comp = new Date(d);
+  comp.setFullYear(comp.getFullYear()-1);
+  const diff = d.getDay() - comp.getDay();
+  comp.setDate(comp.getDate()+diff);
+  return isoDate(comp);
+}
+function offsetDate(n) {
+  const d = new Date();
+  d.setDate(d.getDate()+n);
+  return isoDate(d);
+}
+
+// STATE
+let selectedDates = []; // array of ISO strings
+let weatherCache = {}; // key: "YYYY-MM-DD:locName+zip"
+let activeDate = null; // which date tab is showing
+let activeView = 'upside';
+let activeMarket = 'All';
+
+const markets = ['All',...Array.from(new Set(LOCATIONS.map(l=>l.market)))];
+const pillsEl = document.getElementById('marketPills');
+markets.forEach(m => {
+  const b = document.createElement('button');
+  b.className = 'mpill'+(m==='All'?' active':'');
+  b.textContent = m;
+  b.onclick = () => { activeMarket = m; document.querySelectorAll('.mpill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); render(); };
+  pillsEl.appendChild(b);
+});
+
+// Set max date to today
+const maxFutureDate = new Date();
+maxFutureDate.setDate(maxFutureDate.getDate() + 14);
+document.getElementById('customDateInput').max = isoDate(maxFutureDate);
+
+function selectSingleDate(offset) {
+  const iso = offsetDate(offset);
+  setActiveDate(iso);
+  // Highlight the right chip
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  const chipEl = document.getElementById('chip-'+offset);
+  if (chipEl) chipEl.classList.add('active');
+  document.getElementById('customDateInput').value = '';
+}
+function selectCustomDate() {
+  const val = document.getElementById('customDateInput').value;
+  if (!val) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  setActiveDate(val);
+}
+function addQuickDate(offset) { selectSingleDate(offset); }
+function addDate(iso, skipLoad) {
+  if (!selectedDates.includes(iso)) {
+    selectedDates = [iso];
+  }
+  activeDate = iso;
+  syncViewUI();
+  if (!skipLoad) { loadMissingDates(); render(); }
+}
+function removeDate(iso) {
+  selectedDates = [];
+  activeDate = null;
+  render();
+}
+function clearAll() {
+  selectedDates = [];
+  activeDate = null;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  render();
+}
+function setActiveDate(iso) {
+  selectedDates = [iso];
+  activeDate = iso;
+  if (!isToday(iso) && !isFuture(iso) && activeView === 'downside') activeView = 'upside';
+  syncViewUI();
+  loadMissingDates();
+  render();
+}
+function isToday(iso) { return iso === isoDate(new Date()); }
+function allowedViews(iso) {
+  // Past dates: hide downside (not actionable). Today + future: show all.
+  return (isToday(iso) || isFuture(iso)) ? ['upside','downside','neutral','all'] : ['upside','neutral','all'];
+}
+function setView(v) {
+  // If switching to a non-today date, block downside view
+  if (activeDate && !isToday(activeDate) && v === 'downside') v = 'upside';
+  activeView = v;
+  syncViewUI();
+  render();
+}
+function syncViewUI() {
+  const allowed = activeDate ? allowedViews(activeDate) : ['upside','downside','neutral','all'];
+  ['upside','downside','neutral','all'].forEach(x => {
+    document.getElementById('sc-'+x).classList.toggle('active', x===activeView);
+    document.getElementById('vt-'+x).classList.toggle('active', x===activeView);
+    // Hide downside toggle/scorecard for past dates
+    const hide = x === 'downside' && !allowed.includes('downside');
+    const scEl = document.getElementById('sc-'+x);
+    const vtEl = document.getElementById('vt-'+x);
+    if (scEl) scEl.style.display = hide ? 'none' : '';
+    if (vtEl) vtEl.style.display = hide ? 'none' : '';
+  });
+}
+function refreshCurrent() {
+  if (!activeDate) return;
+  // clear cache for active date
+  Object.keys(weatherCache).forEach(k => { if (k.startsWith(activeDate+':')) delete weatherCache[k]; });
+  loadMissingDates();
+  render();
+}
+
+function parseWeatherResult(daily) {
+  return {
+    high:   Math.round(daily.temperature_2m_max[0]),
+    low:    Math.round(daily.temperature_2m_min[0]),
+    wmo:    daily.weathercode[0],
+    precip: (daily.precipitation_sum[0] || 0).toFixed(2),
+    wind:   Math.round(daily.windspeed_10m_max[0])
+  };
+}
+
+function daysFromToday(iso) {
+  if (!iso || typeof iso !== 'string') return 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(iso+'T12:00:00');
+  if (isNaN(target.getTime())) return 0;
+  target.setHours(0,0,0,0);
+  return Math.round((target - today) / 86400000);
+}
+function isFuture(iso) { return daysFromToday(iso) > 0; }
+function isPastDate(iso) { return daysFromToday(iso) < 0; }
+
+async function fetchBatchUrl(lats, lons, dateStr, forceArchive) {
+  const fields = 'temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum,windspeed_10m_max';
+  const common = `&daily=${fields}&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto`;
+  const offset = daysFromToday(dateStr);
+  let base;
+  if (forceArchive || offset < 0) {
+    // Past date — use archive API
+    base = `https://archive-api.open-meteo.com/v1/archive?latitude=${lats}&longitude=${lons}&start_date=${dateStr}&end_date=${dateStr}${common}`;
+  } else {
+    // Today or future — use forecast API with correct day offset
+    const forecastDays = Math.max(1, Math.min(16, (isNaN(offset) ? 0 : offset) + 1));
+    base = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}${common}&forecast_days=${forecastDays}`;
+  }
+  const resp = await fetch(base);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const json = await resp.json();
+  return Array.isArray(json) ? json : [json];
+}
+
+async function fetchForDate(iso) {
+  const comp = getCompDate(iso);
+  const offset = daysFromToday(iso);
+  const isPast = offset < 0;
+
+  const missing = LOCATIONS.filter(l => !weatherCache[iso+':'+l.name+l.zip]);
+  if (missing.length === 0) return;
+
+  document.getElementById('progressFill').style.width = '5%';
+
+  function extractDay(daily, dayIdx) {
+    const i = Math.max(0, dayIdx || 0);
+    return {
+      high:   Math.round(daily.temperature_2m_max[i]),
+      low:    Math.round(daily.temperature_2m_min[i]),
+      wmo:    daily.weathercode[i],
+      precip: (daily.precipitation_sum[i] || 0).toFixed(2),
+      wind:   Math.round(daily.windspeed_10m_max[i])
+    };
+  }
+
+  if (isPast) {
+    // PAST: archive API supports batch — 2 requests for all 49 locations
+    const lats = missing.map(l => l.lat).join(',');
+    const lons  = missing.map(l => l.lon).join(',');
+    try {
+      const [targetResults, compResults] = await Promise.all([
+        fetchBatchUrl(lats, lons, iso, true),
+        fetchBatchUrl(lats, lons, comp, true)
+      ]);
+      const tArr = Array.isArray(targetResults) ? targetResults : [targetResults];
+      const cArr = Array.isArray(compResults)   ? compResults   : [compResults];
+      missing.forEach((loc, idx) => {
+        try {
+          weatherCache[iso+':'+loc.name+loc.zip] = {
+            target: extractDay(tArr[idx].daily, 0),
+            comp:   extractDay(cArr[idx].daily, 0),
+            compDate: comp
+          };
+        } catch(e) { console.warn('Parse error', loc.name, e); }
+      });
+    } catch(e) { console.warn('Archive batch failed:', e); }
+
+  } else {
+    // TODAY / FUTURE: forecast API does NOT support batch — individual requests
+    // Comp date uses archive batch (one request for all)
+    const lats = missing.map(l => l.lat).join(',');
+    const lons  = missing.map(l => l.lon).join(',');
+    const fDays = Math.max(1, offset + 1);
+    let compMap = {};
+
+    try {
+      const compResults = await fetchBatchUrl(lats, lons, comp, true);
+      const cArr = Array.isArray(compResults) ? compResults : [compResults];
+      missing.forEach((loc, idx) => { compMap[loc.name+loc.zip] = extractDay(cArr[idx].daily, 0); });
+    } catch(e) { console.warn('Comp batch failed, will fetch individually'); }
+
+    const BATCH = 8;
+    let done = 0;
+    for (let i = 0; i < missing.length; i += BATCH) {
+      const batch = missing.slice(i, i + BATCH);
+      await Promise.all(batch.map(async loc => {
+        const cacheKey = iso+':'+loc.name+loc.zip;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const tUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum,windspeed_10m_max&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=${fDays}`;
+            const tr = await fetch(tUrl);
+            if (!tr.ok) throw new Error('HTTP '+tr.status);
+            const td = await tr.json();
+            let compData = compMap[loc.name+loc.zip];
+            if (!compData) {
+              const cUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${loc.lat}&longitude=${loc.lon}&start_date=${comp}&end_date=${comp}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum,windspeed_10m_max&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto`;
+              const cr = await fetch(cUrl);
+              const cd = await cr.json();
+              compData = extractDay(cd.daily, 0);
+            }
+            weatherCache[cacheKey] = {
+              target:   extractDay(td.daily, offset),
+              comp:     compData,
+              compDate: comp
+            };
+            break;
+          } catch(err) {
+            if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+          }
+        }
+        done++;
+        document.getElementById('progressFill').style.width = Math.round(5 + (done/missing.length)*90)+'%';
+      }));
+      if (activeDate === iso) render();
+      if (i + BATCH < missing.length) await new Promise(r => setTimeout(r, 150));
+    }
+  }
+
+  setTimeout(() => { document.getElementById('progressFill').style.width = '0%'; }, 500);
+  if (activeDate === iso) render();
+}
+
+function loadMissingDates() {
+  selectedDates.forEach(iso => {
+    const loaded = LOCATIONS.filter(l => weatherCache[iso+':'+l.name+l.zip]).length;
+    if (loaded < LOCATIONS.length) fetchForDate(iso);
+  });
+}
+
+function getDateData(iso) {
+  const filtered = activeMarket === 'All' ? LOCATIONS : LOCATIONS.filter(l=>l.market===activeMarket);
+  const result = { upside:[], downside:[], neutral:[], all:[] };
+  filtered.forEach(loc => {
+    const d = weatherCache[iso+':'+loc.name+loc.zip];
+    if (!d) return;
+    const sig = signal(d.target, d.comp);
+    result[sig].push({loc, data:d, sig});
+    result.all.push({loc, data:d, sig});
+  });
+  return result;
+}
+
+function cardHTML(loc, data, sig) {
+  const {target:t, comp:c, compDate} = data;
+  const ins = insight(sig, t, c);
+  const sigLabel = sig === 'upside' ? 'Upside ↑' : sig === 'downside' ? 'Downside ↓' : 'Neutral';
+  return `
+  <div class="wx-card ${sig}">
+    <div class="card-head">
+      <div>
+        <div class="card-name">${loc.name}</div>
+        <div class="card-sub">${loc.market} · ${loc.state} · ${loc.zip}</div>
+      </div>
+      <span class="sig-tag ${sig}">${sigLabel}</span>
+    </div>
+    <div class="wx-cols">
+      <div class="wx-col">
+        <div class="wx-col-label">${isFuture(activeDate) ? "Forecast" : "This year"}<span class="wx-col-date">${fmtShort(activeDate)}${isFuture(activeDate) ? " ·  forecast" : ""}</span></div>
+        <div class="wx-main"><span class="wx-icon">${ICON[t.wmo]||'🌡'}</span><span class="wx-temp">${t.high}°</span></div>
+        <div class="wx-range">Low ${t.low}°F</div>
+        <div class="wx-desc">${WMO[t.wmo]||'Unknown'}</div>
+        <div class="wx-chips"><span class="wx-chip">💧${t.precip}"</span><span class="wx-chip">💨${t.wind}mph</span></div>
+      </div>
+      <div class="wx-col">
+        <div class="wx-col-label">Comp day<span class="wx-col-date">${fmtShort(compDate)}</span></div>
+        <div class="wx-main"><span class="wx-icon">${ICON[c.wmo]||'🌡'}</span><span class="wx-temp">${c.high}°</span></div>
+        <div class="wx-range">Low ${c.low}°F</div>
+        <div class="wx-desc">${WMO[c.wmo]||'Unknown'}</div>
+        <div class="wx-chips"><span class="wx-chip">💧${c.precip}"</span><span class="wx-chip">💨${c.wind}mph</span></div>
+      </div>
+    </div>
+    <div class="insight-bar ${sig}">${ins}</div>
+  </div>`;
+}
+
+function updateSelectedDateTags() {
+  // Selected dates bar removed — no-op, kept for compatibility
+}
+
+function render() {
+  updateSelectedDateTags();
+
+  // Day tabs
+  const tabsWrap = document.getElementById('dayTabsWrap');
+  if (selectedDates.length <= 1) {
+    tabsWrap.classList.add('hidden');
+  } else {
+    tabsWrap.classList.remove('hidden');
+    tabsWrap.innerHTML = selectedDates.map(iso => {
+      const d = getDateData(iso);
+      return `<button class="day-tab${iso===activeDate?' active':''}" onclick="setActiveDate('${iso}')">
+        ${fmtShort(iso)}
+        <span class="tab-pill tab-up">↑${d.upside.length}</span>
+        <span class="tab-pill tab-down">↓${d.downside.length}</span>
+      </button>`;
+    }).join('');
+  }
+
+  if (!activeDate || selectedDates.length === 0) {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="empty-prompt">
+        <div class="empty-prompt-icon">☀</div>
+        <div class="empty-prompt-text"><strong>Pick a date above to get started</strong><br>Use quick chips or enter a custom date</div>
+      </div>`;
+    document.getElementById('compInfoBar').textContent = 'Select a date to begin';
+    ['hdrUp','hdrDown','hdrTotal','scNumUp','scNumNeut','scNumDown','scNumAll'].forEach(id=>document.getElementById(id).textContent='—');
+    return;
+  }
+
+  const loaded = LOCATIONS.filter(l=>weatherCache[activeDate+':'+l.name+l.zip]).length;
+  if (loaded === 0) {
+    document.getElementById('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div><span>Loading weather data...</span></div>`;
+    document.getElementById('compInfoBar').textContent = 'Fetching data...';
+    return;
+  }
+
+  const compIso = getCompDate(activeDate);
+  document.getElementById('compInfoBar').innerHTML = `Showing: <span>${fmtFull(activeDate)}</span> &nbsp;·&nbsp; Comp day (same DOW -1yr): <span>${fmtFull(compIso)}</span> &nbsp;·&nbsp; ${loaded}/${LOCATIONS.length} locations loaded`;
+
+  const d = getDateData(activeDate);
+  document.getElementById('scNumUp').textContent = d.upside.length;
+  document.getElementById('scNumNeut').textContent = d.neutral.length;
+  document.getElementById('scNumDown').textContent = d.downside.length;
+  document.getElementById('scNumAll').textContent = d.all.length;
+  document.getElementById('hdrUp').textContent = d.upside.length;
+  document.getElementById('hdrDown').textContent = d.downside.length;
+  document.getElementById('hdrTotal').textContent = d.all.length;
+
+  const toRender = activeView === 'all'
+    ? [{label:'Upside — good today, bad comp',cls:'up',items:d.upside},{label:'Downside — bad today, good comp',cls:'down',items:d.downside},{label:'Neutral — similar conditions',cls:'neut',items:d.neutral}]
+    : [{label: activeView==='upside'?'Upside locations':activeView==='downside'?'Downside locations':'Neutral locations', cls: activeView==='upside'?'up':activeView==='downside'?'down':'neut', items:d[activeView]}];
+
+  let html = '';
+  toRender.forEach(section => {
+    if (section.items.length === 0 && activeView !== 'all') {
+      html += `<div class="no-results">No ${activeView} locations for this date &amp; market filter.</div>`; return;
+    }
+    if (section.items.length === 0) return;
+    html += `<div class="section-block">
+      <div class="section-head">
+        <span class="section-eye ${section.cls}">${section.label}</span>
+        <span class="section-count ${section.cls}">${section.items.length}</span>
+      </div>
+      <div class="card-grid">
+        ${section.items.map(({loc,data,sig})=>cardHTML(loc,data,sig)).join('')}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('mainContent').innerHTML = html || '<div class="no-results">No data yet — loading...</div>';
+}
+
+// Auto-load today on open
+window.addEventListener('load', () => {
+  setTimeout(() => selectSingleDate(0), 100);
+});
+
+// Track what day we loaded on
+let loadedOnDate = isoDate(new Date());
+
+// Check every 60 seconds: roll to new day OR refresh weather every 30 min
+setInterval(() => {
+  const todayIso = isoDate(new Date());
+
+  // New day rolled over
+  if (todayIso !== loadedOnDate) {
+    loadedOnDate = todayIso;
+
+    // Switch to the new day automatically
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    const chip0 = document.getElementById('chip-0');
+    if (chip0) chip0.classList.add('active');
+    setActiveDate(todayIso);
+
+    // Clear yesterday's forecast cache (historical data won't change)
+    const yesterday = isoDate(new Date(Date.now() - 86400000));
+    Object.keys(weatherCache).forEach(k => {
+      if (k.startsWith(yesterday+':')) delete weatherCache[k];
+    });
+
+    syncViewUI();
+    render();
+    return;
+  }
+
+  // Same day: refresh today's live weather every 30 minutes
+  const now = new Date();
+  if (now.getMinutes() % 30 === 0 && now.getSeconds() < 90) {
+    if (selectedDates.includes(todayIso)) {
+      Object.keys(weatherCache).forEach(k => { if (k.startsWith(todayIso+':')) delete weatherCache[k]; });
+      fetchForDate(todayIso);
+    }
+  }
+}, 60 * 1000);
+</script>
+</body>
+</html>
